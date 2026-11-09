@@ -74,6 +74,31 @@ class TestCreatePayment:
         assert payments_count == 1
         assert outbox_count == 1
 
+    async def test_concurrent_duplicate_falls_back_to_existing_payment(
+        self, db_session, monkeypatch
+    ):
+        """Гонка двух запросов: IntegrityError по уникальному индексу откатывается,
+        и сервис возвращает уже созданный конкурентный платёж."""
+        service = PaymentService(db_session)
+        first = await service.create_payment(_build_create_request(), idempotency_key="race-key")
+
+        real_find = service._find_by_idempotency_key
+        find_calls = 0
+
+        async def racing_find(key: str) -> Payment | None:
+            """Первая проверка «не видит» конкурентный платёж — как при гонке."""
+            nonlocal find_calls
+            find_calls += 1
+            if find_calls == 1:
+                return None
+            return await real_find(key)
+
+        monkeypatch.setattr(service, "_find_by_idempotency_key", racing_find)
+
+        second = await service.create_payment(_build_create_request(), idempotency_key="race-key")
+
+        assert second.id == first.id
+
 
 class TestGetPayment:
     """Проверки чтения платежа через PaymentService."""
