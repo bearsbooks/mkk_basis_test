@@ -23,17 +23,17 @@ docstring-комментариями.
 
 ```mermaid
 flowchart LR
-    C[Клиент] -->|POST /api/v1/payments\nX-API-Key, Idempotency-Key| API[API\nFastAPI]
-    API -->|одна транзакция| PG[(PostgreSQL\npayments + outbox)]
-    API -->|202 Accepted| C
-    R[Outbox relay\nфоновая задача API] -->|SELECT ... FOR UPDATE SKIP LOCKED| PG
-    R -->|publish payments.new| RMQ[[RabbitMQ\npayments.new]]
-    RMQ --> CON[Consumer\nFastStream]
-    CON -->|эмуляция шлюза 2-5с| GW[Платёжный шлюз\n90% успех / 10% отказ]
-    CON -->|статус + processed_at| PG
-    CON -->|webhook + retry ×3| C
-    RMQ -.->|nack после 3 неудач| DLQ[[payments.dlq]]
-    C2[Клиент] -->|GET /api/v1/payments/{id}| API
+    C["Клиент"] -->|"POST /api/v1/payments<br/>X-API-Key, Idempotency-Key"| API["API<br/>FastAPI"]
+    API -->|"одна транзакция"| PG[("PostgreSQL<br/>payments + outbox")]
+    API -->|"202 Accepted"| C
+    R["Outbox relay<br/>фоновая задача API"] -->|"SELECT ... FOR UPDATE SKIP LOCKED"| PG
+    R -->|"publish payments.new"| RMQ[["RabbitMQ<br/>payments.new"]]
+    RMQ --> CON["Consumer<br/>FastStream"]
+    CON -->|"эмуляция шлюза 2-5с"| GW["Платёжный шлюз<br/>90% успех / 10% отказ"]
+    CON -->|"статус + processed_at"| PG
+    CON -->|"webhook + retry ×3"| C
+    RMQ -.->|"nack после 3 неудач"| DLQ[["payments.dlq"]]
+    C2["Клиент"] -->|"GET /api/v1/payments/{id}"| API
 ```
 
 Поток обработки:
