@@ -1,0 +1,40 @@
+[project]
+name = "mkk-payments"
+version = "0.1.0"
+description = "Асинхронный сервис процессинга платежей (тестовое задание)"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi==0.162.2",
+    "uvicorn[standard]==0.54.0",
+    "pydantic==2.14.3",
+    "pydantic-settings==2.16.2",
+    "SQLAlchemy==2.1.8",
+    "asyncpg==0.32.0",
+    "alembic==1.20.1",
+    "faststream[rabbit]==0.7.8",
+    "httpx==0.28.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==9.2.0",
+    "pytest-asyncio==1.4.1.post1",
+    "pytest-cov==7.1.0",
+    "respx==0.23.1",
+    "testcontainers[postgres]==4.15.0",
+]
+
+[tool.pytest.ini_options]
+# Все асинхронные тесты запускаются автоматически без декораторов.
+asyncio_mode = "auto"
+# Фикстуры асинхронного цикла событий привязаны к области видимости "function".
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+# Кастомные маркеры: e2e — тесты с реальным RabbitMQ в testcontainers.
+markers = [
+    "e2e: сквозные тесты с реальным RabbitMQ (docker)",
+]
+addopts = "--cov=app --cov-report=term-missing -m 'not e2e'"
+
+[tool.coverage.run]
+source = ["app"]
