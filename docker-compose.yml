@@ -1,0 +1,74 @@
+# Docker-окружение микросервива: postgres + rabbitmq + миграции + api + consumer.
+# Запуск: docker compose up --build
+# Переменные берутся из .env (см. .env.example).
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-mkk}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mkk}
+      POSTGRES_DB: ${POSTGRES_DB:-mkk_payments}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mkk} -d ${POSTGRES_DB:-mkk_payments}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-mkk}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-mkk}
+    ports:
+      - "5672:5672"    # AMQP
+      - "15672:15672"  # Management UI (логин/пароль из переменных выше)
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Разовая задача: применяет миграции и завершается.
+  migrate:
+    build: .
+    command: ["migrate"]
+    environment: &app_env
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-mkk}:${POSTGRES_PASSWORD:-mkk}@postgres:5432/${POSTGRES_DB:-mkk_payments}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-mkk}:${RABBITMQ_PASSWORD:-mkk}@rabbitmq:5672/
+      API_KEY: ${API_KEY:-dev-api-key}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build: .
+    command: ["api"]
+    environment: *app_env
+    ports:
+      - "8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+
+  consumer:
+    build: .
+    command: ["consumer"]
+    environment: *app_env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  rabbitmq_data:
