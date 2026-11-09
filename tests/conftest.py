@@ -13,7 +13,7 @@ import pytest
 import pytest_asyncio
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from testcontainers.postgres import PostgresContainer
+from testcontainers.community.postgres import PostgresContainer
 
 # Корень проекта — нужен для запуска Alembic в подпроцессе.
 PROJECT_ROOT: Path = Path(__file__).resolve().parent.parent

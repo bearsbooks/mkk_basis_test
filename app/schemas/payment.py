@@ -10,7 +10,7 @@ from decimal import Decimal
 from enum import Enum
 from typing import Annotated, Any
 
-from pydantic import BaseModel, Field, HttpUrl, TypeAdapter, field_validator
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, TypeAdapter, field_validator
 
 # Переиспользуемый валидатор http(s)-адресов (создаётся один раз для производительности).
 _HTTP_URL_ADAPTER: TypeAdapter[HttpUrl] = TypeAdapter(HttpUrl)
@@ -82,15 +82,19 @@ class PaymentCreatedResponse(BaseModel):
 
 
 class PaymentResponse(BaseModel):
-    """Детальная информация о платеже (ответ GET /api/v1/payments/{payment_id})."""
+    """Детальная информация о платеже (ответ GET /api/v1/payments/{payment_id}).
 
-    model_config = {"from_attributes": True}
+    Валидационные алиасы связывают имена атрибутов ORM-модели (id, metadata_)
+    с именами полей JSON-ответа (payment_id, metadata).
+    """
 
-    id: uuid.UUID = Field(alias="payment_id")
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+    payment_id: uuid.UUID = Field(validation_alias="id")
     amount: Decimal
     currency: Currency
     description: str
-    metadata: dict[str, Any]
+    metadata: dict[str, Any] = Field(default_factory=dict, validation_alias="metadata_")
     status: PaymentStatus
     idempotency_key: str
     webhook_url: str
