@@ -14,10 +14,40 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 
 import app.consumers.payments as payments_module
 from app.config import Settings
+from app.models import Payment
 from app.schemas.payment import Currency, PaymentCreate, PaymentStatus
 from app.services.payment_service import PaymentService
 
 from tests.consumers.test_payment_processor import SpyWebhookSender, StubGateway
+
+
+class FailingSessionFactory:
+    """Фабрика сессий, имитирующая полностью недоступную БД.
+
+    Каждый вызов считает попытку и возвращает контекстный менеджер,
+    бросающий RuntimeError при входе — как реальная фабрика при сбое БД.
+    """
+
+    def __init__(self) -> None:
+        """Инициализирует счётчик попыток обработки."""
+        self.attempts: list[int] = []
+
+    def __call__(self):
+        """Фиксирует попытку и возвращает «падающий» контекстный менеджер."""
+        self.attempts.append(1)
+
+        class _FailingContext:
+            """Контекст сессии, бросающий исключение при открытии."""
+
+            async def __aenter__(self):
+                """Имитирует ошибку подключения к БД при открытии сессии."""
+                raise RuntimeError("БД недоступна")
+
+            async def __aexit__(self, exc_type, exc, tb) -> bool:
+                """Не подавляет исключения обработчика."""
+                return False
+
+        return _FailingContext()
 
 
 async def _create_pending_payment(session_factory) -> uuid.UUID:
@@ -70,7 +100,7 @@ class TestPaymentsNewConsumer:
             )
 
         async with consumer_env["session_factory"]() as session:
-            payment = await session.get(payments_module.Payment, payment_id)
+            payment = await session.get(Payment, payment_id)
             assert payment.status is PaymentStatus.SUCCEEDED
             assert payment.processed_at is not None
         assert len(consumer_env["sender"].calls) == 1
@@ -89,7 +119,7 @@ class TestPaymentsNewConsumer:
             )
 
         async with consumer_env["session_factory"]() as session:
-            payment = await session.get(payments_module.Payment, payment_id)
+            payment = await session.get(Payment, payment_id)
             assert payment.status is PaymentStatus.FAILED
         assert consumer_env["sender"].calls[0][1].event == "payment.failed"
 
@@ -117,14 +147,7 @@ class TestPaymentsNewConsumer:
         self, consumer_env, monkeypatch
     ):
         """Системная ошибка: 3 попытки с retry, затем проброс для DLQ."""
-
-        attempts = []
-
-        async def failing_factory():
-            """«Фабрика сессий», всегда падающая при открытии сессии."""
-            attempts.append(1)
-            raise RuntimeError("БД недоступна")
-
+        failing_factory = FailingSessionFactory()
         monkeypatch.setattr(payments_module, "session_factory", failing_factory)
 
         async with TestRabbitBroker(payments_module.broker) as test_broker:
@@ -136,4 +159,4 @@ class TestPaymentsNewConsumer:
                 )
 
         # Ровно три попытки — дальше сообщение уходит в DLQ.
-        assert len(attempts) == 3
+        assert len(failing_factory.attempts) == 3
