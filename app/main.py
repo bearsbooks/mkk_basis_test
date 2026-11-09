@@ -65,7 +65,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await relay_task
     except asyncio.CancelledError:
         pass
-    await broker.close()
+    await broker.stop()
     logger.info("API остановлен: relay остановлен, брокер закрыт")
 
 

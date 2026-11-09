@@ -92,10 +92,19 @@ def create_broker(rabbitmq_url: str) -> RabbitBroker:
 
     @broker.subscriber(dlq_queue, dlx_exchange)
     async def handle_dead_letter(message: dict) -> None:
-        """Наблюдатель DLQ: логирует сообщения, окончательно упавшие после 3 попыток."""
-        logger.error("Сообщение попало в DLQ после исчерпания попыток: %s", message)
+        """Наблюдатель DLQ: делегирует хуку on_dead_letter (логирование/e2e-тесты)."""
+        on_dead_letter(message)
 
     return broker
+
+
+def on_dead_letter(message: dict) -> None:
+    """Хук наблюдателя DLQ: логирует окончательно упавшие сообщения.
+
+    Вынесен на уровень модуля, чтобы e2e-тесты могли подменить его
+    и перехватывать сообщения, реально попавшие в DLQ.
+    """
+    logger.error("Сообщение попало в DLQ после исчерпания попыток: %s", message)
 
 
 async def _process_with_retry(payment_id: uuid.UUID) -> None:
