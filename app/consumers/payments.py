@@ -18,6 +18,7 @@ import logging
 import uuid
 
 import httpx
+from faststream import FastStream
 from faststream.rabbit import ExchangeType, RabbitBroker, RabbitExchange, RabbitQueue
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
@@ -130,5 +131,9 @@ async def _process_with_retry(payment_id: uuid.UUID) -> None:
     )
 
 
-# Прод-брокер с зарегистрированными обработчиками: faststream run app.consumers.payments:broker
+# Прод-брокер с зарегистрированными обработчиками.
 broker: RabbitBroker = create_broker(get_settings().rabbitmq_url)
+
+# FastStream-приложение для запуска consumer-а:
+#   faststream run app.consumers.payments:faststream_app
+faststream_app = FastStream(broker)

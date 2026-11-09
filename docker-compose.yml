@@ -25,12 +25,12 @@ services:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-mkk}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-mkk}
     ports:
-      - "5672:5672"    # AMQP
-      - "15672:15672"  # Management UI (логин/пароль из переменных выше)
+      - "${AMQP_PORT:-5672}:5672"          # AMQP
+      - "${RABBITMQ_UI_PORT:-15672}:15672" # Management UI (логин/пароль из переменных выше)
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -52,12 +52,13 @@ services:
     command: ["api"]
     environment: *app_env
     ports:
-      - "8000:8000"
+      - "${API_PORT:-8000}:8000"
     depends_on:
       migrate:
         condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
+    restart: unless-stopped
 
   consumer:
     build: .
@@ -68,6 +69,7 @@ services:
         condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   pgdata:

@@ -1,7 +1,8 @@
 """Точка входа API-сервиса: фабрика FastAPI-приложения с lifespan.
 
-При старте приложения запускаются RabbitBroker (объявляет топологию)
-и фоновая задача outbox-relay, гарантирующая публикацию событий.
+При старте приложения запускаются RabbitBroker (только публикация,
+без подписок — обработкой занимается отдельный consumer) и фоновая
+задача outbox-relay, гарантирующая публикацию событий.
 Отдельная функция create_app упрощает тестирование — тесты собирают
 приложение и подменяют зависимости (БД, настройки) без изменения модуля.
 """
@@ -12,10 +13,11 @@ from contextlib import asynccontextmanager
 from typing import Any, AsyncIterator
 
 from fastapi import FastAPI
+from faststream.rabbit import RabbitBroker
 
 from app.api.v1.payments import router as payments_router
 from app.config import Settings, get_settings
-from app.consumers.payments import create_broker, payments_exchange, payments_queue
+from app.consumers.payments import payments_exchange, payments_queue
 from app.db.session import SessionFactory
 from app.services.outbox_relay import OutboxRelay
 
@@ -45,7 +47,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     фоновой задачи и закрытие соединения с брокером.
     """
     settings: Settings = get_settings()
-    broker = create_broker(settings.rabbitmq_url)
+    # Брокер API без подписчиков: API только публикует события outbox;
+    # обработку очереди выполняет выделенный consumer-процесс.
+    broker = RabbitBroker(settings.rabbitmq_url)
     await broker.start()
 
     relay = OutboxRelay(

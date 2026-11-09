@@ -46,7 +46,7 @@ class FakeBroker:
 async def lifespan_app(db_engine, monkeypatch):
     """Собирает приложение с дублем брокера и быстрой настройкой relay."""
     fake_broker = FakeBroker()
-    monkeypatch.setattr(main_module, "create_broker", lambda url: fake_broker)
+    monkeypatch.setattr(main_module, "RabbitBroker", lambda url: fake_broker)
     monkeypatch.setattr(
         main_module,
         "get_settings",

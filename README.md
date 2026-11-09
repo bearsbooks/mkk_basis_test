@@ -238,6 +238,9 @@ alembic/                     # async-миграции (0001: payments, outbox)
 | `API_KEY` | `dev-api-key` | статический ключ заголовка `X-API-Key` |
 | `DATABASE_URL` | `postgresql+asyncpg://mkk:mkk@localhost:5432/mkk_payments` | подключение к PostgreSQL |
 | `RABBITMQ_URL` | `amqp://mkk:mkk@localhost:5672/` | подключение к RabbitMQ |
+| `API_PORT` | `8000` | опубликованный наружу порт API |
+| `AMQP_PORT` | `5672` | опубликованный наружу порт AMQP |
+| `RABBITMQ_UI_PORT` | `15672` | порт Management UI RabbitMQ |
 | `OUTBOX_POLL_INTERVAL` | `1.0` | интервал опроса outbox (с) |
 | `WEBHOOK_MAX_ATTEMPTS` | `3` | попытки доставки webhook |
 | `CONSUMER_MAX_ATTEMPTS` | `3` | повторные попытки обработки сообщения |

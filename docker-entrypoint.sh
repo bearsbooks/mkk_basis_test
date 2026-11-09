@@ -17,7 +17,7 @@ if [ "$ROLE" = "api" ]; then
 fi
 
 if [ "$ROLE" = "consumer" ]; then
-    exec faststream run app.consumers.payments:broker
+    exec faststream run app.consumers.payments:faststream_app
 fi
 
 # Произвольная команда (например, для отладки): sh.
